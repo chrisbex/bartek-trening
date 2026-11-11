@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Deal } from '../types/bridge';
 import { exportToPbn } from '../utils/pbnParser';
 import { X, BookOpen, Plus, Trash2, Edit3, Share2, Check, Sparkles } from 'lucide-react';
@@ -46,14 +47,19 @@ export const DealsLibraryModal: React.FC<DealsLibraryModalProps> = ({
     });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 overflow-y-auto">
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="deals-library-title"
+      className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 overflow-y-auto"
+    >
       <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl text-white overflow-hidden">
         {/* Header */}
         <div className="bg-slate-800/90 px-5 py-3.5 border-b border-slate-700 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-blue-400" />
-            <h2 className="text-base font-bold text-white">Biblioteka rozdań i lekcji brydżowych</h2>
+            <h2 id="deals-library-title" className="text-base font-bold text-white">Biblioteka rozdań i lekcji brydżowych</h2>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -213,6 +219,7 @@ export const DealsLibraryModal: React.FC<DealsLibraryModalProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

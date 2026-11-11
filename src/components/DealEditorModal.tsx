@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Card, Direction, Vulnerability, Suit, Rank, SUITS_ORDER, RANKS_ORDER, createCard, sortHand, generateFullDeck, shuffleCards, calculateHCP } from '../logic/bridgeRules';
 import { Deal } from '../types/bridge';
 import { formatPbnHand, parsePbnHand, importFromPbn } from '../utils/pbnParser';
@@ -185,14 +186,19 @@ export const DealEditorModal: React.FC<DealEditorModalProps> = ({
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 overflow-y-auto">
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="deal-editor-title"
+      className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 overflow-y-auto"
+    >
       <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl text-white overflow-hidden">
         {/* Header */}
         <div className="bg-slate-800/90 px-5 py-3 border-b border-slate-700 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-amber-400" />
-            <h2 className="text-base font-bold text-white">
+            <h2 id="deal-editor-title" className="text-base font-bold text-white">
               {initialDeal ? 'Edytor rozdania' : 'Kreator nowego rozdania szkoleniowego'}
             </h2>
           </div>
@@ -455,7 +461,7 @@ export const DealEditorModal: React.FC<DealEditorModalProps> = ({
                 value={pbnRaw}
                 onChange={(e) => setPbnRaw(e.target.value)}
                 rows={7}
-                placeholder={`% Wklej rozdanie z BBO lub PZBS:\n[Dealer "N"]\n[Vulnerable "None"]\n[Deal "N:AK.QJT.987.AKQJ 98.765.654.9876 ..."]\n[Auction "N"]\n1NT Pass 3NT Pass Pass Pass`}
+                placeholder={`% Wklej rozdanie w formacie PBN lub z PZBS:\n[Dealer "N"]\n[Vulnerable "None"]\n[Deal "N:AK.QJT.987.AKQJ 98.765.654.9876 ..."]\n[Auction "N"]\n1NT Pass 3NT Pass Pass Pass`}
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 font-mono text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-400"
               />
               <button
@@ -532,6 +538,7 @@ export const DealEditorModal: React.FC<DealEditorModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

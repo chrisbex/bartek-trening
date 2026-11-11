@@ -39,7 +39,7 @@ export const WorkspaceDock: React.FC<WorkspaceDockProps> = ({
   const windowList = [
     {
       id: 'table',
-      name: 'Stół BBO',
+      name: 'Stół',
       icon: <Compass className="w-4 h-4 text-emerald-400" />,
     },
     {

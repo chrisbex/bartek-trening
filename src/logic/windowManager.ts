@@ -175,7 +175,7 @@ export function getDefaultWindowsLayout(
     return {
       table: {
         id: 'table',
-        title: 'Stół Brydżowy (BBO Felt)',
+        title: 'Stół Brydżowy',
         x: 16,
         y: 16,
         width: leftWidth,
@@ -229,7 +229,7 @@ export function getDefaultWindowsLayout(
   return {
     table: {
       id: 'table',
-      title: 'Stół Brydżowy (BBO Felt)',
+      title: 'Stół Brydżowy',
       x: 16,
       y: 16,
       width: fullWidth,

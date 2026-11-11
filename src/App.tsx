@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import confetti from 'canvas-confetti';
 import {
   Direction,
@@ -53,6 +54,7 @@ import {
 const LOCAL_STORAGE_CUSTOM_DEALS = 'bridge_master_custom_deals_v1';
 const LOCAL_STORAGE_WINDOWS_KEY = 'bridge_master_windows_layout_v3';
 const LOCAL_STORAGE_FLOATING_KEY = 'bridge_master_floating_mode_v3';
+const TRICK_TAKE_PAUSE_MS = 1000;
 
 export default function App() {
   // Custom deals from localStorage
@@ -75,10 +77,11 @@ export default function App() {
     fourColorDeck: false, // classic BBO 2-color matching reference screenshot
     openCards: false, // student mode by default
     autoPlaySingletons: true,
-    autoAdvanceTricks: false,
+    fastTrickAnimation: false,
     soundEnabled: true,
     userSeat: 'S',
   });
+  const trickTakeDurationMs = settings.fastTrickAnimation ? 650 : 900;
 
   // Presentation mode: Manual control of all seats vs AI/Robot opponents
   const [manualControl, setManualControl] = useState<boolean>(false);
@@ -105,7 +108,17 @@ export default function App() {
   const [windows, setWindows] = useState<Record<string, WindowState>>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_WINDOWS_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const savedWindows: Record<string, WindowState> = JSON.parse(saved);
+        const tableWindow = savedWindows.table;
+        if (tableWindow) {
+          savedWindows.table = {
+            ...tableWindow,
+            title: tableWindow.title.replace(/\s*\(BBO Felt\)\s*$/i, ''),
+          };
+        }
+        return savedWindows;
+      }
     } catch {}
     return getDefaultWindowsLayout(typeof window !== 'undefined' ? window.innerWidth : 1440, 900);
   });
@@ -240,7 +253,7 @@ export default function App() {
   const [playTurn, setPlayTurn] = useState<Direction>('W');
   const [waitingForNextTrick, setWaitingForNextTrick] = useState<boolean>(false);
   const [lastTrickWinner, setLastTrickWinner] = useState<Direction | null>(null);
-  const [isDummyVisible, setIsDummyVisible] = useState<boolean>(false);
+  const [isCollectingTrick, setIsCollectingTrick] = useState<boolean>(false);
 
   // Score modal
   const [scoreResult, setScoreResult] = useState<ReturnType<typeof calculateBridgeScore> | null>(null);
@@ -257,7 +270,6 @@ export default function App() {
     playTurn: Direction;
     waitingForNextTrick: boolean;
     lastTrickWinner: Direction | null;
-    isDummyVisible: boolean;
   }[]>([]);
 
   // Update Settings helper
@@ -287,7 +299,7 @@ export default function App() {
     setPlayTurn(nextDirection(deal.dealer));
     setWaitingForNextTrick(false);
     setLastTrickWinner(null);
-    setIsDummyVisible(false);
+    setIsCollectingTrick(false);
     setScoreResult(null);
     setHistoryStack([]);
   }, []);
@@ -312,7 +324,6 @@ export default function App() {
         playTurn,
         waitingForNextTrick,
         lastTrickWinner,
-        isDummyVisible,
       },
     ]);
   }, [
@@ -326,7 +337,6 @@ export default function App() {
     playTurn,
     waitingForNextTrick,
     lastTrickWinner,
-    isDummyVisible,
   ]);
 
   // Undo function
@@ -345,7 +355,7 @@ export default function App() {
     setPlayTurn(last.playTurn);
     setWaitingForNextTrick(last.waitingForNextTrick);
     setLastTrickWinner(last.lastTrickWinner);
-    setIsDummyVisible(last.isDummyVisible);
+    setIsCollectingTrick(false);
     setScoreResult(null);
   }, [historyStack]);
 
@@ -396,6 +406,10 @@ export default function App() {
     });
     return set;
   }, [phase, waitingForNextTrick, currentHand, currentTrick]);
+  const isHumanControlledTurn =
+    manualControl ||
+    playTurn === settings.userSeat ||
+    Boolean(contract && contract.declarer === settings.userSeat && playTurn === contract.dummy);
 
   // Start card play after auction
   const startCardPlay = useCallback((finalContract: Contract) => {
@@ -412,7 +426,7 @@ export default function App() {
       trumpSuit: trump,
     });
     setPlayTurn(leader);
-    setIsDummyVisible(false);
+    setIsCollectingTrick(false);
   }, []);
 
   // Handle Bidding Call
@@ -448,11 +462,6 @@ export default function App() {
 
     pushHistorySnapshot();
 
-    // Reveal dummy as soon as first card (opening lead) is played
-    if (!isDummyVisible) {
-      setIsDummyVisible(true);
-    }
-
     // Remove card from player hand
     setHands(prev => ({
       ...prev,
@@ -465,6 +474,7 @@ export default function App() {
 
     // If trick complete (4 cards)
     if (newCards.length === 4) {
+      setIsCollectingTrick(false);
       const winner = determineTrickWinner(updatedTrick);
       const finishedTrick: Trick = { ...updatedTrick, winner };
       setLastTrickWinner(winner);
@@ -475,7 +485,6 @@ export default function App() {
 
       // Check if all 13 tricks played
       if (nextCompleted.length === 13 && contract) {
-        setPhase('finished');
         const declarerWon = contract.declarer === 'N' || contract.declarer === 'S'
           ? nextCompleted.filter(t => t.winner === 'N' || t.winner === 'S').length
           : nextCompleted.filter(t => t.winner === 'E' || t.winner === 'W').length;
@@ -490,7 +499,7 @@ export default function App() {
     } else {
       setPlayTurn(nextDirection(playedBy));
     }
-  }, [phase, waitingForNextTrick, playTurn, hands, currentTrick, pushHistorySnapshot, isDummyVisible, completedTricks, contract]);
+  }, [phase, waitingForNextTrick, playTurn, hands, currentTrick, pushHistorySnapshot, completedTricks, contract]);
 
   // Proceed to next trick
   const handleNextTrick = useCallback(() => {
@@ -503,17 +512,32 @@ export default function App() {
     });
     setPlayTurn(lastTrickWinner);
     setWaitingForNextTrick(false);
+    setIsCollectingTrick(false);
   }, [lastTrickWinner, contract]);
 
-  // Auto advance tricks if enabled
   useEffect(() => {
-    if (waitingForNextTrick && settings.autoAdvanceTricks) {
+    if (!waitingForNextTrick) {
+      setIsCollectingTrick(false);
+      return;
+    }
+
+    const timer = setTimeout(() => setIsCollectingTrick(true), TRICK_TAKE_PAUSE_MS);
+    return () => clearTimeout(timer);
+  }, [waitingForNextTrick]);
+
+  // Collect the completed trick before starting the next one.
+  useEffect(() => {
+    if (waitingForNextTrick) {
       const timer = setTimeout(() => {
-        handleNextTrick();
-      }, 1200);
+        if (completedTricks.length === 13) {
+          setPhase('finished');
+        } else {
+          handleNextTrick();
+        }
+      }, TRICK_TAKE_PAUSE_MS + trickTakeDurationMs + 150);
       return () => clearTimeout(timer);
     }
-  }, [waitingForNextTrick, settings.autoAdvanceTricks, handleNextTrick]);
+  }, [waitingForNextTrick, completedTricks.length, trickTakeDurationMs, handleNextTrick]);
 
   // Claim tricks
   const handleClaimTricks = (claimedByNS: number) => {
@@ -554,10 +578,7 @@ export default function App() {
 
     // Automated Card Play
     if (phase === 'play' && !waitingForNextTrick) {
-      const isUserControlling = playTurn === settings.userSeat ||
-        (contract && contract.declarer === settings.userSeat && playTurn === contract.dummy);
-
-      if (!isUserControlling) {
+      if (!isHumanControlledTurn) {
         const hand = hands[playTurn];
         if (!hand || hand.length === 0) return;
 
@@ -587,6 +608,7 @@ export default function App() {
     hands,
     currentTrick,
     handlePlayCard,
+    isHumanControlledTurn,
   ]);
 
   // Current trick index (1..13)
@@ -623,7 +645,7 @@ export default function App() {
             <div className="flex items-center gap-2">
               <h1 className="text-base md:text-lg font-black tracking-tight text-white">Bridge Master</h1>
               <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                BBO Edition
+                Edycja treningowa
               </span>
             </div>
             <p className="text-xs text-slate-400">Studio Nauki i Prowadzenia Lekcji Brydża</p>
@@ -710,7 +732,7 @@ export default function App() {
         {isFloatingMode ? (
           // ================= FREE-FLOATING MOVABLE / RESIZABLE WORKSPACE =================
           <>
-            {/* Window 1: Table (Stół BBO) */}
+            {/* Window 1: Table */}
             <WorkspaceWindow
               windowState={windows.table}
               onUpdateState={(partial) => handleUpdateWindowState('table', partial)}
@@ -723,12 +745,13 @@ export default function App() {
               icon={<Compass className="w-4 h-4 text-emerald-400" />}
               badge={
                 <span className="text-[10px] font-mono text-emerald-300 bg-emerald-950/70 px-2 py-0.5 rounded border border-emerald-500/30">
-                  Stół BBO
+                  Stół
                 </span>
               }
             >
               <FeltTable
                 hands={hands}
+                biddingHistory={biddingHistory}
                 currentTurn={phase === 'bidding' ? biddingTurn : playTurn}
                 dealer={currentDeal.dealer}
                 vulnerability={currentDeal.vulnerability}
@@ -736,16 +759,16 @@ export default function App() {
                 currentTrick={currentTrick}
                 nsTricksWon={nsTricksWon}
                 ewTricksWon={ewTricksWon}
-                isDummyVisible={isDummyVisible}
                 openCards={settings.openCards}
                 fourColor={settings.fourColorDeck}
                 userSeat={settings.userSeat}
-                isInteractive={phase === 'play'}
+                isInteractive={phase === 'play' && isHumanControlledTurn}
                 playableCardIds={playableCardIds}
                 onPlayCard={handlePlayCard}
-                onNextTrick={handleNextTrick}
                 waitingForNextTrick={waitingForNextTrick}
                 lastTrickWinner={lastTrickWinner}
+                isCollectingTrick={isCollectingTrick}
+                trickTakeDurationMs={trickTakeDurationMs}
               />
             </WorkspaceWindow>
 
@@ -801,15 +824,6 @@ export default function App() {
                       </div>
                     </div>
 
-                    {waitingForNextTrick && lastTrickWinner && (
-                      <button
-                        type="button"
-                        onClick={handleNextTrick}
-                        className="w-full py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-xl text-sm shadow-xl transition active:scale-95 cursor-pointer mt-1"
-                      >
-                        Zbierz lewę (Wygrał {lastTrickWinner}) →
-                      </button>
-                    )}
                   </div>
                 </div>
               )}
@@ -900,6 +914,7 @@ export default function App() {
                 >
                   <FeltTable
                     hands={hands}
+                    biddingHistory={biddingHistory}
                     currentTurn={phase === 'bidding' ? biddingTurn : playTurn}
                     dealer={currentDeal.dealer}
                     vulnerability={currentDeal.vulnerability}
@@ -907,16 +922,16 @@ export default function App() {
                     currentTrick={currentTrick}
                     nsTricksWon={nsTricksWon}
                     ewTricksWon={ewTricksWon}
-                    isDummyVisible={isDummyVisible}
                     openCards={settings.openCards}
                     fourColor={settings.fourColorDeck}
                     userSeat={settings.userSeat}
-                    isInteractive={phase === 'play'}
+                    isInteractive={phase === 'play' && isHumanControlledTurn}
                     playableCardIds={playableCardIds}
                     onPlayCard={handlePlayCard}
-                    onNextTrick={handleNextTrick}
                     waitingForNextTrick={waitingForNextTrick}
                     lastTrickWinner={lastTrickWinner}
+                    isCollectingTrick={isCollectingTrick}
+                    trickTakeDurationMs={trickTakeDurationMs}
                   />
                 </WorkspaceWindow>
               )}
@@ -969,15 +984,6 @@ export default function App() {
                             </div>
                           </div>
 
-                          {waitingForNextTrick && lastTrickWinner && (
-                            <button
-                              type="button"
-                              onClick={handleNextTrick}
-                              className="w-full py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-xl text-sm shadow-xl transition active:scale-95 cursor-pointer mt-1"
-                            >
-                              Zbierz lewę (Wygrał {lastTrickWinner}) →
-                            </button>
-                          )}
                         </div>
                       </div>
                     )}
@@ -1063,8 +1069,12 @@ export default function App() {
       />
 
       {/* Results / Score Modal */}
-      {phase === 'finished' && scoreResult && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+      {phase === 'finished' && scoreResult && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+        >
           <div className="bg-slate-900 border border-amber-400/50 rounded-2xl p-6 max-w-md w-full shadow-2xl text-center text-white animate-in zoom-in-95">
             <div className="w-14 h-14 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center mx-auto mb-3">
               <Trophy className="w-8 h-8 text-amber-400" />
@@ -1120,7 +1130,8 @@ export default function App() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modals */}

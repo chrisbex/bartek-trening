@@ -178,20 +178,20 @@ export const TeacherPanel: React.FC<TeacherPanelProps> = ({
             onClick={() => onUpdateSettings({ fourColorDeck: !settings.fourColorDeck })}
             className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 font-bold transition cursor-pointer"
           >
-            <span>Talia: {settings.fourColorDeck ? '4 kolory (BBO)' : '2 kolory'}</span>
+            <span>Talia: {settings.fourColorDeck ? '4 kolory' : '2 kolory'}</span>
           </button>
 
-          {/* Auto advance tricks toggle */}
+          {/* Trick collection animation speed toggle */}
           <button
             type="button"
-            onClick={() => onUpdateSettings({ autoAdvanceTricks: !settings.autoAdvanceTricks })}
+            onClick={() => onUpdateSettings({ fastTrickAnimation: !settings.fastTrickAnimation })}
             className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border font-bold transition cursor-pointer ${
-              settings.autoAdvanceTricks
+              settings.fastTrickAnimation
                 ? 'bg-emerald-900/40 border-emerald-400 text-emerald-100'
                 : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
             }`}
           >
-            <span>Tempo: {settings.autoAdvanceTricks ? 'Automatyczne' : 'Ręczne (Krok)'}</span>
+            <span>Animacja lewy: {settings.fastTrickAnimation ? 'Szybka' : 'Spokojna'}</span>
           </button>
         </div>
       </div>

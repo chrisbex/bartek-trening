@@ -64,9 +64,9 @@ export const BBOCard: React.FC<BBOCardProps> = ({
 
   // Sizing: Vertical rectangle with ~1:1.77 aspect ratio (authentic BBO card proportions)
   const sizeClasses = {
-    compact: 'w-[34px] h-[60px] sm:w-[38px] sm:h-[68px]',
-    normal: 'w-[38px] h-[68px] sm:w-[42px] sm:h-[75px] md:w-[44px] md:h-[78px]',
-    large: 'w-[44px] h-[78px] sm:w-[48px] sm:h-[84px] md:w-[52px] md:h-[90px]',
+    compact: 'w-[54px] h-[90px] sm:w-[60px] sm:h-[102px]',
+    normal: 'w-[60px] h-[102px] sm:w-[66px] sm:h-[113px] md:w-[69px] md:h-[117px]',
+    large: 'w-[69px] h-[117px] sm:w-[75px] sm:h-[126px] md:w-[81px] md:h-[135px]',
   }[size];
 
   if (hidden) {
@@ -80,9 +80,8 @@ export const BBOCard: React.FC<BBOCardProps> = ({
         `}
         title="Karta zakryta"
       >
-        <div className="absolute inset-[3px] border border-blue-400/40 rounded-[1px] bg-[#1d4ed8] flex items-center justify-center">
-          <div className="w-4 h-6 border border-amber-300/40 rotate-45 flex items-center justify-center">
-            <span className="text-[9px] text-amber-200/70 font-serif font-black -rotate-45">bbo</span>
+        <div className="absolute inset-[4.5px] border border-blue-400/40 rounded-[1px] bg-[#1d4ed8] flex items-center justify-center">
+          <div className="w-6 h-9 border border-amber-300/40 rotate-45 flex items-center justify-center">
           </div>
         </div>
       </div>
@@ -100,19 +99,19 @@ export const BBOCard: React.FC<BBOCardProps> = ({
       className={`
         ${sizeClasses}
         bg-white border ${borderColor} rounded-[1px] shadow-xs
-        flex flex-col items-center pt-1 pb-1.5 px-0.5 select-none shrink-0 font-sans
+        flex flex-col items-center pt-1.5 pb-2.5 px-1 select-none shrink-0 font-sans
         transition-all duration-150 relative
-        ${isPlayable && onClick ? 'hover:-translate-y-2 hover:shadow-lg hover:z-30 cursor-pointer active:translate-y-0 ring-1 ring-amber-400' : 'cursor-default'}
+        ${isPlayable && onClick ? 'hover:-translate-y-3 hover:shadow-lg hover:z-30 cursor-pointer active:translate-y-0 ring-1 ring-amber-400' : 'cursor-default'}
         ${className}
       `}
     >
       {/* Top: Polish Rank (Bold, sharp, prominent - like BBO) */}
-      <span className={`${isTen ? 'text-lg sm:text-xl' : 'text-xl sm:text-2xl'} font-black leading-none ${textColor} tracking-tight`}>
+      <span className={`${isTen ? 'text-2xl sm:text-[30px]' : 'text-3xl sm:text-4xl'} font-black leading-none ${textColor} tracking-tight`}>
         {rankLabel}
       </span>
 
       {/* Directly Underneath: Suit Symbol */}
-      <span className={`text-lg sm:text-xl font-black leading-none ${textColor} mt-1`}>
+      <span className={`text-2xl sm:text-[30px] font-black leading-none ${textColor} mt-1.5`}>
         {symbol}
       </span>
     </button>

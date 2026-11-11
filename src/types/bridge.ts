@@ -34,7 +34,7 @@ export interface TableSettings {
   fourColorDeck: boolean; // green clubs, orange/blue diamonds, red hearts, black spades
   openCards: boolean; // Teacher mode: see all 4 hands
   autoPlaySingletons: boolean;
-  autoAdvanceTricks: boolean;
+  fastTrickAnimation: boolean;
   soundEnabled: boolean;
   userSeat: Direction; // which seat the student is controlling (default 'S')
 }
